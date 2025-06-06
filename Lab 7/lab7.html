@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Conservation of Angular Momentum</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; }
+    canvas { background: #f0f0f0; display: block; margin: 20px auto; border: 1px solid #ccc; }
+    #controls { margin-top: 10px; }
+    label { margin: 0 15px; }
+  </style>
+</head>
+<body>
+  <h2>Conservation of Angular Momentum Demo</h2>
+  <canvas id="canvas" width="600" height="600"></canvas>
+  <div id="controls">
+    <label>
+      Radius:
+      <input type="range" id="radiusSlider" min="50" max="250" value="150">
+      <span id="radiusValue">150</span> px
+    </label>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx    = canvas.getContext('2d');
+    const W      = canvas.width, H = canvas.height;
+    const cx     = W/2, cy = H/2;
+
+    const m = 1;                    
+    const r0 = 150;                 
+    const omega0 = 0.02;             
+    const L = m * r0 * r0 * omega0; 
+
+    let r     = r0;
+    let theta = 0;
+
+    const slider = document.getElementById('radiusSlider');
+    const disp   = document.getElementById('radiusValue');
+    slider.addEventListener('input', () => {
+      r = Number(slider.value);
+      disp.textContent = r;
+    });
+
+    function animate() {
+
+      ctx.clearRect(0, 0, W, H);
+
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, Math.PI*2);
+      ctx.strokeStyle = '#aaa';
+      ctx.stroke();
+
+      const omega = L / (m * r * r);
+
+      theta += omega;
+
+      const x = cx + r * Math.cos(theta);
+      const y = cy + r * Math.sin(theta);
+
+      ctx.beginPath();
+      ctx.arc(x, y, 10, 0, Math.PI*2);
+      ctx.fillStyle = 'steelblue';
+      ctx.fill();
+
+      const v = omega * r;
+      const vx = -v * Math.sin(theta);
+      const vy =  v * Math.cos(theta);
+      const scale = 30;
+      ctx.beginPath();
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + vx * scale, y + vy * scale);
+      ctx.strokeStyle = 'red';
+      ctx.stroke();
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+  </script>
+</body>
+</html>

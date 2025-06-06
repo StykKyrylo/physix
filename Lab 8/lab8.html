@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Rolling Ball on Curved Incline</title>
+  <style>
+    body { margin:0; overflow:hidden; background:#222; }
+    canvas { display:block; background:#eee; }
+  </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const g = 9.81;         
+  const m = 1.0;        
+  const R = 20;           
+  const I = (2/5) * m * R * R;
+  const dragCoeff = 0.1;  
+
+  const dt = 0.016;     
+
+  let x = 1500;             
+  let v = 0;              
+  let phi = 0;          
+
+  function surfaceY(x) {
+    return canvas.height * 0.75
+           - 0.5 * x
+           + 50 * Math.sin(x * 0.01);
+  }
+
+  function slope(x) {
+    const h = 0.1;
+    return (surfaceY(x + h) - surfaceY(x - h)) / (2 * h);
+  }
+
+  function update() {
+
+    const dy_dx = slope(x);
+    const theta = Math.atan2(dy_dx, 1);
+
+    const a_grav = (5/7) * g * Math.sin(theta);
+    const a_drag = - (dragCoeff / m) * v;
+    const a = a_grav + a_drag;
+
+    v += a * dt;
+
+    x += v * Math.cos(theta) * dt;
+
+    phi += (v / R) * dt;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.beginPath();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#444';
+    for (let px = 0; px <= canvas.width; px += 1) {
+      const py = surfaceY(px);
+      if (px === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.stroke();
+
+    const y = surfaceY(x) - R;
+    const angle = Math.atan2(slope(x), 1);
+
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(phi);
+    ctx.beginPath();
+    ctx.arc(0, 0, R, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff5722';
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.lineTo(R, 0);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 3;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function loop() {
+    update();
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+})();
+</script>
+</body>
+</html>

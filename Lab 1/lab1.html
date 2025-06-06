@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Newton’s First Law Simulation</title>
+  <style>
+    body {
+      display: flex;
+      margin: 0;
+      height: 100vh;
+      font-family: sans-serif;
+    }
+    #canvas-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f9f9f9;
+    }
+    canvas {
+      border: 2px solid #333;
+      background: white;
+    }
+    #controls {
+      width: 260px;
+      padding: 20px;
+      box-sizing: border-box;
+      background: #fff;
+      border-left: 1px solid #ddd;
+    }
+    .control-group {
+      margin-bottom: 20px;
+    }
+    .control-group label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 5px;
+    }
+    .control-group input[type="number"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 6px 4px;
+      margin-bottom: 6px;
+      font-size: 14px;
+    }
+    .control-group input[type="range"] {
+      width: 100%;
+    }
+    .control-group .row {
+      display: flex;
+      gap: 10px;
+    }
+    .control-group .row input {
+      flex: 1;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container">
+    <canvas id="simCanvas" width="600" height="600"></canvas>
+  </div>
+
+  <div id="controls">
+    <div class="control-group">
+      <label>Position</label>
+      <div class="row">
+        <input type="number" id="posX" value="0.00" step="0.01" readonly />
+        <input type="number" id="posY" value="0.00" step="0.01" readonly />
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Velocity</label>
+      <div class="row">
+        <input type="number" id="velX" value="0" step="1" />
+        <input type="number" id="velY" value="0" step="1" />
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Scale (pixels per unit)</label>
+      <input type="range" id="scaleSlider" min="1" max="200" value="50" />
+    </div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('simCanvas');
+    const ctx    = canvas.getContext('2d');
+
+    const posXInput     = document.getElementById('posX');
+    const posYInput     = document.getElementById('posY');
+    const velXInput     = document.getElementById('velX');
+    const velYInput     = document.getElementById('velY');
+    const scaleSlider   = document.getElementById('scaleSlider');
+
+    let pos   = { x: 0, y: 0 };
+    let vel   = { x: parseFloat(velXInput.value), y: parseFloat(velYInput.value) };
+    let scale = parseFloat(scaleSlider.value);
+
+    velXInput.addEventListener('input', () => vel.x = parseFloat(velXInput.value));
+    velYInput.addEventListener('input', () => vel.y = parseFloat(velYInput.value));
+    scaleSlider.addEventListener('input', () => scale = parseFloat(scaleSlider.value));
+
+    function drawAxes() {
+      const w = canvas.width, h = canvas.height;
+      ctx.strokeStyle = '#eee';
+      ctx.lineWidth = 1;
+      const step = scale;
+      for (let x = (w/2) % step; x < w; x += step) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = (h/2) % step; y < h; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(w/2, 0);
+      ctx.lineTo(w/2, h);
+      ctx.moveTo(0, h/2);
+      ctx.lineTo(w, h/2);
+      ctx.stroke();
+    }
+
+    let lastTime = performance.now();
+    function animate(time) {
+      const dt = (time - lastTime) / 1000;  // seconds since last frame
+      lastTime = time;
+
+      // Newton’s First Law: constant velocity => position += velocity * dt
+      pos.x += vel.x * dt;
+      pos.y += vel.y * dt;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawAxes();
+
+      const px = canvas.width/2  + pos.x * scale;
+      const py = canvas.height/2 - pos.y * scale;
+
+      ctx.beginPath();
+      ctx.fillStyle = 'blue';
+      ctx.arc(px, py, 10, 0, Math.PI * 2);
+      ctx.fill();
+
+      posXInput.value = pos.x.toFixed(2);
+      posYInput.value = pos.y.toFixed(2);
+
+      requestAnimationFrame(animate);
+    }
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

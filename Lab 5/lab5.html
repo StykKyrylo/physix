@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Collision & Drag Demo</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #222; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<script>
+
+  class Vec {
+    constructor(x, y) { this.x = x; this.y = y; }
+    add(v)   { return new Vec(this.x+v.x, this.y+v.y); }
+    sub(v)   { return new Vec(this.x-v.x, this.y-v.y); }
+    mul(s)   { return new Vec(this.x*s,   this.y*s); }
+    dot(v)   { return this.x*v.x + this.y*v.y; }
+    len()    { return Math.hypot(this.x, this.y); }
+    norm()   { let m=this.len()||1; return new Vec(this.x/m, this.y/m); }
+  }
+
+  class Ball {
+    constructor(x,y,r=15,m=1){
+      this.pos = new Vec(x,y);
+      this.vel = new Vec(0,0);
+      this.r = r;
+      this.mass = m;
+    }
+    update(dt){
+      this.vel = this.vel.add(new Vec(0, 980).mul(dt));
+
+      this.vel = this.vel.mul(0.999);
+      this.pos = this.pos.add(this.vel.mul(dt));
+    }
+    draw(ctx){
+      ctx.fillStyle = '#f5b';
+      ctx.beginPath();
+      ctx.arc(this.pos.x, this.pos.y, this.r, 0,Math.PI*2);
+      ctx.fill();
+    }
+  }
+
+  class Segment {
+    constructor(a,b){
+      this.a = a; this.b = b;
+      let d = b.sub(a);
+      this.normal = new Vec(-d.y, d.x).norm();
+    }
+    draw(ctx){
+      ctx.strokeStyle = '#888';
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(this.a.x,this.a.y);
+      ctx.lineTo(this.b.x,this.b.y);
+      ctx.stroke();
+    }
+    collideBall(ball){
+      let ap = ball.pos.sub(this.a), ab = this.b.sub(this.a);
+      let t = ap.dot(ab)/ab.dot(ab);
+      t = Math.max(0, Math.min(1, t));
+      let closest = this.a.add(ab.mul(t));
+      let diff = ball.pos.sub(closest);
+      let dist = diff.len();
+      if(dist < ball.r){
+        
+        let pen = ball.r - dist;
+        ball.pos = ball.pos.add(diff.norm().mul(pen+0.1));
+
+        let vn = ball.vel.dot(this.normal);
+        ball.vel = ball.vel.sub(this.normal.mul(2*vn)).mul(0.7);
+      }
+    }
+  }
+
+  const canvas = document.getElementById('canvas'),
+        ctx = canvas.getContext('2d');
+  let balls = [], segments = [];
+  let dragging = null, dragOffset = null;
+
+  function resize(){
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
+    initSegments();
+  }
+  window.addEventListener('resize', resize);
+
+  function initSegments(){
+    segments = [];
+    const W = canvas.width, H = canvas.height;
+
+    segments.push(new Segment(
+      new Vec(W*0.1, H*0.15),
+      new Vec(W*0.3, H*0.15)
+    ));
+
+    segments.push(new Segment(
+      new Vec(W*0.75, H*0.05),
+      new Vec(W*0.75, H*0.25)
+    ));
+
+    const brLT = new Vec(W*0.65, H*0.75),
+          brLB = new Vec(W*0.7,  H*0.9),
+          brRT = new Vec(W*0.85, H*0.75),
+          brRB = new Vec(W*0.8,  H*0.9);
+    segments.push(new Segment(brLT, brLB));
+    segments.push(new Segment(brRT, brRB));
+    segments.push(new Segment(brLB, brRB));
+
+    const blLT = new Vec(W*0.1, H*0.75),
+          blLB = new Vec(W*0.1, H*0.9),
+          blRT = new Vec(W*0.3, H*0.75),
+          blRB = new Vec(W*0.3, H*0.9);
+    segments.push(new Segment(blLT, blLB));
+    segments.push(new Segment(blRT, blRB));
+    segments.push(new Segment(blLB, blRB));
+
+    segments.push(new Segment(new Vec(0, H), new Vec(W, H)));
+    segments.push(new Segment(new Vec(0, 0), new Vec(W, 0)));
+    segments.push(new Segment(new Vec(0, 0), new Vec(0, H)));
+    segments.push(new Segment(new Vec(W, 0), new Vec(W, H)));
+  }
+
+  function initBalls(){
+    balls = [];
+    const W = canvas.width, H = canvas.height;
+    for(let i=0;i<3;i++){
+      balls.push(new Ball(
+        W*0.12 + i*40,
+        H*0.15 - 20
+      ));
+    }
+    for(let i=0;i<6;i++){
+      balls.push(new Ball(
+        W*0.12 + i*30,
+        H*0.9 - 20
+      ));
+    }
+    balls.push(new Ball(W*0.18, H*0.9 - 2*20));
+  }
+
+  function handleBallCollisions(){
+    for(let i=0;i<balls.length;i++){
+      for(let j=i+1;j<balls.length;j++){
+        let A = balls[i], B = balls[j];
+        let d = B.pos.sub(A.pos), dist = d.len();
+        if(dist < A.r + B.r){
+          let overlap = A.r + B.r - dist,
+              dir = d.norm();
+          A.pos = A.pos.add(dir.mul(-overlap/2));
+          B.pos = B.pos.add(dir.mul(overlap/2));
+          let rel = A.vel.sub(B.vel),
+              vn = rel.dot(dir);
+          if(vn < 0){
+            let imp = dir.mul((2*vn)/(A.mass+B.mass));
+            A.vel = A.vel.sub(imp.mul(B.mass)).mul(0.8);
+            B.vel = B.vel.add(imp.mul(A.mass)).mul(0.8);
+          }
+        }
+      }
+    }
+  }
+
+  let last=0;
+  function loop(ts){
+    let dt = (ts-last)/1000; last = ts;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    segments.forEach(s=>{ s.draw(ctx); });
+
+    balls.forEach(b=>{
+      if(b!==dragging) b.update(dt);
+      segments.forEach(s=>s.collideBall(b));
+      b.draw(ctx);
+    });
+
+    handleBallCollisions();
+    requestAnimationFrame(loop);
+  }
+
+  canvas.addEventListener('mousedown', e=>{
+    const m = new Vec(e.offsetX, e.offsetY);
+    for(let b of balls){
+      if(b.pos.sub(m).len() < b.r){
+        dragging = b;
+        dragOffset = b.pos.sub(m);
+        b.vel = new Vec(0,0);
+        break;
+      }
+    }
+  });
+  canvas.addEventListener('mousemove', e=>{
+    if(dragging){
+      dragging.pos = new Vec(e.offsetX, e.offsetY).add(dragOffset);
+    }
+  });
+  window.addEventListener('mouseup', ()=>{ dragging = null; });
+
+  canvas.addEventListener('dblclick', e=>{
+    balls.push(new Ball(e.offsetX, e.offsetY));
+  });
+
+  resize();
+  initBalls();
+  requestAnimationFrame(loop);
+</script>
+</body>
+</html>

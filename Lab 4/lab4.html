@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>N-Body with Fixed Central Mass & Bounce</title>
+  <style>
+    body { margin: 0; overflow: hidden; background: #000 }
+    canvas { display: block }
+  </style>
+</head>
+<body>
+  <canvas id="sim"></canvas>
+  <script>
+    const canvas = document.getElementById('sim');
+    const ctx    = canvas.getContext('2d');
+    function resize() {
+      canvas.width  = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    const G         = 0.5;    
+    const dt        = 0.1;    
+    const softening = 50; 
+
+    class Body {
+      constructor(x,y,mass,vx=0,vy=0,fixed=false) {
+        this.x = x; this.y = y;
+        this.mass  = mass;
+        this.vx    = vx; this.vy = vy;
+        this.ax    = 0;  this.ay = 0;
+        this.radius = Math.cbrt(mass)*2;
+        this.fixed  = fixed;
+      }
+      computeAcceleration(others) {
+        let ax = 0, ay = 0;
+        for (const o of others) {
+          if (o === this) continue;
+          const dx = o.x - this.x;
+          const dy = o.y - this.y;
+          const r2 = dx*dx + dy*dy + softening*softening;
+          const invr = 1/Math.sqrt(r2);
+          const a    = G * o.mass / r2;
+          ax += a * dx * invr;
+          ay += a * dy * invr;
+        }
+        this.ax = ax; this.ay = ay;
+      }
+      update() {
+        if (this.fixed) return;
+        this.vx += this.ax * dt;
+        this.vy += this.ay * dt;
+        this.x  += this.vx * dt;
+        this.y  += this.vy * dt;
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI*2);
+        ctx.fillStyle = '#fff';
+        ctx.fill();
+      }
+    }
+
+    function resolveCollision(b1, b2) {
+      const dx = b2.x - b1.x, dy = b2.y - b1.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const overlap = (b1.radius + b2.radius) - dist;
+      if (overlap <= 0) return;
+
+      const nx = dx/dist, ny = dy/dist;
+      if (!b1.fixed) {
+        b1.x -= nx * overlap * (b2.fixed ? 1 : 0.5);
+        b1.y -= ny * overlap * (b2.fixed ? 1 : 0.5);
+      }
+      if (!b2.fixed) {
+        b2.x += nx * overlap * (b1.fixed ? 1 : 0.5);
+        b2.y += ny * overlap * (b1.fixed ? 1 : 0.5);
+      }
+
+      if (b1.fixed || b2.fixed) {
+        const m = b1.fixed ? b2 : b1;
+        const vDot = m.vx*nx + m.vy*ny;
+        m.vx -= 2 * vDot * nx;
+        m.vy -= 2 * vDot * ny;
+        return;
+      }
+
+      const dvx = b1.vx - b2.vx;
+      const dvy = b1.vy - b2.vy;
+      const relVel = dvx*nx + dvy*ny;
+      if (relVel > 0) return;  
+
+      const m1 = b1.mass, m2 = b2.mass;
+
+      const j = (2 * relVel) / (m1 + m2);
+      b1.vx -= j * m2 * nx;
+      b1.vy -= j * m2 * ny;
+      b2.vx += j * m1 * nx;
+      b2.vy += j * m1 * ny;
+    }
+
+    const bodies = [];
+
+    bodies.push(new Body(canvas.width/2 - 150, canvas.height/2, 500,  0,  0.8));
+    bodies.push(new Body(canvas.width/2 + 150, canvas.height/2, 1000,  0, -0.8));
+    bodies.push(new Body(canvas.width/2 + 250, canvas.height/2, 1500,  0, -0.8));
+
+
+    bodies.push(new Body(canvas.width/2,       canvas.height/2, 8000,  0,    0, true));
+
+    function step() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      for (const b of bodies) b.computeAcceleration(bodies);
+
+      for (const b of bodies) b.update();
+
+      for (let i = 0; i < bodies.length; i++) {
+        for (let j = i+1; j < bodies.length; j++) {
+          resolveCollision(bodies[i], bodies[j]);
+        }
+      }
+
+      for (const b of bodies) b.draw();
+
+      requestAnimationFrame(step);
+    }
+    step();
+  </script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Bohr Atom Demo</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #111;
+      color: #eee;
+      font-family: sans-serif;
+    }
+    canvas {
+      background: #222;
+      border: 2px solid #444;
+      margin-top: 1em;
+    }
+    h1 {
+      margin-top: 1em;
+      font-size: 1.5em;
+    }
+  </style>
+</head>
+<body>
+  <h1>Bohr-Style Atom Model</h1>
+  <canvas id="canvas" width="600" height="600"></canvas>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx    = canvas.getContext('2d');
+    const W      = canvas.width, H = canvas.height;
+    const cx     = W/2, cy = H/2;
+
+    const electrons = [
+      { r:  80, speed: 120, color: '#4fc3f7', θ0:  0 },
+      { r: 140, speed:  90, color: '#ffca28', θ0: 90 * Math.PI/180 },
+      { r: 200, speed:  60, color: '#aed581', θ0:180 * Math.PI/180 },
+    ];
+
+    let t0 = null;
+
+    function animate(ts) {
+      if (t0 === null) t0 = ts;
+      const t = (ts - t0) / 1000;
+
+      ctx.clearRect(0, 0, W, H);
+
+      ctx.fillStyle = '#fdd835';
+      ctx.beginPath();
+      ctx.arc(cx, cy, 16, 0, 2*Math.PI);
+      ctx.fill();
+      
+      electrons.forEach(e => {
+        // Angular velocity = v / r  (rad/s)
+        const ω = e.speed / e.r;
+        const θ = e.θ0 + ω * t;
+
+        // Orbit path
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(cx, cy, e.r, 0, 2*Math.PI);
+        ctx.stroke();
+
+        // Electron
+        const x = cx + e.r * Math.cos(θ);
+        const y = cy + e.r * Math.sin(θ);
+        ctx.fillStyle = e.color;
+        ctx.beginPath();
+        ctx.arc(x, y, 8, 0, 2*Math.PI);
+        ctx.fill();
+      });
+
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Newton’s Second Law Simulation</title>
+  <style>
+    body {
+      display: flex;
+      margin: 0;
+      height: 100vh;
+      font-family: sans-serif;
+    }
+    #canvas-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #f9f9f9;
+    }
+    canvas {
+      border: 2px solid #333;
+      background: white;
+    }
+    #controls {
+      width: 280px;
+      padding: 20px;
+      box-sizing: border-box;
+      background: #fff;
+      border-left: 1px solid #ddd;
+    }
+    .control-group {
+      margin-bottom: 16px;
+    }
+    .control-group label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .control-group .row {
+      display: flex;
+      gap: 8px;
+    }
+    .control-group input[type="number"] {
+      width: 100%;
+      padding: 4px;
+      font-size: 14px;
+      box-sizing: border-box;
+    }
+    .control-group input[type="range"] {
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="canvas-container">
+    <canvas id="simCanvas" width="600" height="600"></canvas>
+  </div>
+
+  <div id="controls">
+    <div class="control-group">
+      <label>Position</label>
+      <div class="row">
+        <input type="number" id="posX" value="0.00" step="0.01" readonly>
+        <input type="number" id="posY" value="0.00" step="0.01" readonly>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Velocity</label>
+      <div class="row">
+        <input type="number" id="velX" value="0.00" step="0.01" readonly>
+        <input type="number" id="velY" value="0.00" step="0.01" readonly>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Acceleration</label>
+      <div class="row">
+        <input type="number" id="accX" value="0.00" step="0.01" readonly>
+        <input type="number" id="accY" value="0.00" step="0.01" readonly>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Mass (m)</label>
+      <input type="number" id="mass" value="1.00" step="0.1" min="0.01">
+    </div>
+
+    <div class="control-group">
+      <label>Force 1</label>
+      <div class="row">
+        <input type="number" id="f1x" value="0" step="1">
+        <input type="number" id="f1y" value="0" step="1">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Force 2</label>
+      <div class="row">
+        <input type="number" id="f2x" value="0" step="1">
+        <input type="number" id="f2y" value="0" step="1">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Net Force</label>
+      <div class="row">
+        <input type="number" id="netFx" value="0.00" step="0.01" readonly>
+        <input type="number" id="netFy" value="0.00" step="0.01" readonly>
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Scale (px per unit)</label>
+      <input type="range" id="scaleSlider" min="5" max="200" value="50">
+    </div>
+  </div>
+
+  <script>
+    const canvas     = document.getElementById('simCanvas');
+    const ctx        = canvas.getContext('2d');
+
+    const posXInput  = document.getElementById('posX');
+    const posYInput  = document.getElementById('posY');
+    const velXInput  = document.getElementById('velX');
+    const velYInput  = document.getElementById('velY');
+    const accXInput  = document.getElementById('accX');
+    const accYInput  = document.getElementById('accY');
+    const netFxInput = document.getElementById('netFx');
+    const netFyInput = document.getElementById('netFy');
+
+    const massInput  = document.getElementById('mass');
+    const f1xInput   = document.getElementById('f1x');
+    const f1yInput   = document.getElementById('f1y');
+    const f2xInput   = document.getElementById('f2x');
+    const f2yInput   = document.getElementById('f2y');
+    const scaleSlider = document.getElementById('scaleSlider');
+
+    let pos   = {x:0, y:0};
+    let vel   = {x:0, y:0};
+    let acc   = {x:0, y:0};
+    let forces = [
+      { x: parseFloat(f1xInput.value), y: parseFloat(f1yInput.value) },
+      { x: parseFloat(f2xInput.value), y: parseFloat(f2yInput.value) }
+    ];
+    let mass  = parseFloat(massInput.value);
+    let scale = parseFloat(scaleSlider.value);
+
+    function updateForces() {
+      forces[0].x = parseFloat(f1xInput.value);
+      forces[0].y = parseFloat(f1yInput.value);
+      forces[1].x = parseFloat(f2xInput.value);
+      forces[1].y = parseFloat(f2yInput.value);
+    }
+    f1xInput.addEventListener('input', updateForces);
+    f1yInput.addEventListener('input', updateForces);
+    f2xInput.addEventListener('input', updateForces);
+    f2yInput.addEventListener('input', updateForces);
+    massInput.addEventListener('input', () => {
+      const v = parseFloat(massInput.value);
+      if (v > 0) mass = v;
+    });
+    scaleSlider.addEventListener('input', () => {
+      scale = parseFloat(scaleSlider.value);
+    });
+
+    function drawAxes() {
+      const w = canvas.width, h = canvas.height;
+      ctx.strokeStyle = '#eee';
+      ctx.lineWidth = 1;
+      const step = scale;
+      for (let x = (w/2)%step; x < w; x += step) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, h);
+        ctx.stroke();
+      }
+      for (let y = (h/2)%step; y < h; y += step) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(w, y);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(w/2, 0);
+      ctx.lineTo(w/2, h);
+      ctx.moveTo(0, h/2);
+      ctx.lineTo(w, h/2);
+      ctx.stroke();
+    }
+
+    function drawArrow(x0,y0, x1,y1, color) {
+      const headlen = 10; // px
+      const dx = x1 - x0, dy = y1 - y0;
+      const ang = Math.atan2(dy, dx);
+      ctx.strokeStyle = color;
+      ctx.fillStyle   = color;
+      ctx.lineWidth   = 3;
+
+      ctx.beginPath();
+      ctx.moveTo(x0, y0);
+      ctx.lineTo(x1, y1);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x1 - headlen * Math.cos(ang - Math.PI/6),
+                 y1 - headlen * Math.sin(ang - Math.PI/6));
+      ctx.lineTo(x1 - headlen * Math.cos(ang + Math.PI/6),
+                 y1 - headlen * Math.sin(ang + Math.PI/6));
+      ctx.lineTo(x1, y1);
+      ctx.fill();
+    }
+
+    let lastTime = performance.now();
+    function animate(time) {
+      const dt = (time - lastTime)/1000;
+      lastTime = time;
+
+      const netF = forces.reduce((sum, f) => ({
+        x: sum.x + f.x,
+        y: sum.y + f.y
+      }), {x:0,y:0});
+
+      //acceleration
+      acc.x = netF.x / mass;
+      acc.y = netF.y / mass;
+
+      //update velocity
+      vel.x += acc.x * dt;
+      vel.y += acc.y * dt;
+
+      //update position
+      pos.x += vel.x * dt;
+      pos.y += vel.y * dt;
+
+      ctx.clearRect(0,0, canvas.width, canvas.height);
+      drawAxes();
+
+      const cx = canvas.width/2;
+      const cy = canvas.height/2;
+      const px = cx + pos.x * scale;
+      const py = cy - pos.y * scale;
+
+      ctx.beginPath();
+      ctx.fillStyle = 'blue';
+      ctx.arc(px, py, 10, 0, Math.PI*2);
+      ctx.fill();
+
+      forces.forEach(f => {
+        const fx = px + f.x * scale;
+        const fy = py - f.y * scale;
+        drawArrow(px, py, fx, fy, 'red');
+      });
+
+      const nfx = px + netF.x * scale;
+      const nfy = py - netF.y * scale;
+      drawArrow(px, py, nfx, nfy, 'green');
+
+      posXInput.value  = pos.x.toFixed(2);
+      posYInput.value  = pos.y.toFixed(2);
+      velXInput.value  = vel.x.toFixed(2);
+      velYInput.value  = vel.y.toFixed(2);
+      accXInput.value  = acc.x.toFixed(2);
+      accYInput.value  = acc.y.toFixed(2);
+      netFxInput.value = netF.x.toFixed(2);
+      netFyInput.value = netF.y.toFixed(2);
+
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+
+</body>
+</html>

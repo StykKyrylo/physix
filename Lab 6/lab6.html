@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Uniform Circular Motion Demo</title>
+  <style>
+    body { display:flex; flex-direction:column; align-items:center; font-family:sans-serif; }
+    #controls { margin:1em; }
+    label { margin-right:1em; }
+    canvas { background:#f0f0f0; border:1px solid #ccc; }
+    #info { margin-top:1em; }
+    #info div { margin:0.2em 0; }
+  </style>
+</head>
+<body>
+
+  <canvas id="canvas" width="500" height="500"></canvas>
+
+  <div id="controls">
+    <label>
+      Radius:
+      <input type="range" id="radiusSlider" min="20" max="200" value="100">
+      <span id="radiusVal">100</span> px
+    </label>
+    <label>
+      Speed:
+      <input type="range" id="speedSlider" min="10" max="300" value="120">
+      <span id="speedVal">120</span> px/s
+    </label>
+    <label>
+      Initial Angle:
+      <input type="number" id="angleInput" min="0" max="360" value="0">°
+    </label>
+  </div>
+
+  <div id="info">
+    <div>Frequency (f): <span id="fVal">–</span> Hz</div>
+    <div>Period (T): <span id="tVal">–</span> s</div>
+    <div>Angular velocity (ω): <span id="wVal">–</span> rad/s</div>
+    <div>Centripetal accel. (aₙ): <span id="aVal">–</span> (px/s²)</div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const cx = W/2, cy = H/2;
+
+    const rS = document.getElementById('radiusSlider');
+    const sS = document.getElementById('speedSlider');
+    const aI = document.getElementById('angleInput');
+    const rV = document.getElementById('radiusVal');
+    const sV = document.getElementById('speedVal');
+    const fV = document.getElementById('fVal');
+    const tV = document.getElementById('tVal');
+    const wV = document.getElementById('wVal');
+    const aVal = document.getElementById('aVal');
+
+    let radius = +rS.value;
+    let speed  = +sS.value;
+    let theta0 = +aI.value * Math.PI/180; 
+
+    rS.addEventListener('input', _=>{ radius=+rS.value; rV.textContent=radius; });
+    sS.addEventListener('input', _=>{ speed =+sS.value; sV.textContent=speed; });
+    aI.addEventListener('change', _=>{ theta0=+aI.value*Math.PI/180; });
+
+    let tStart = null;
+    function drawArrow(x1,y1,x2,y2,color){
+      const headlen = 10;
+      const dx = x2-x1, dy = y2-y1;
+      const ang = Math.atan2(dy,dx);
+      ctx.strokeStyle = color;
+      ctx.fillStyle   = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(x1,y1);
+      ctx.lineTo(x2,y2);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(x2,y2);
+      ctx.lineTo(x2 - headlen*Math.cos(ang - Math.PI/6),
+                  y2 - headlen*Math.sin(ang - Math.PI/6));
+      ctx.lineTo(x2 - headlen*Math.cos(ang + Math.PI/6),
+                  y2 - headlen*Math.sin(ang + Math.PI/6));
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    function animate(ts){
+      if (!tStart) tStart = ts;
+      const dt = (ts - tStart)/1000;
+
+      const ω = speed / radius;                
+      const f = ω / (2*Math.PI);                
+      const T = 1 / (f||1e-9);                 
+      const ac = (speed*speed)/radius;       
+
+      const θ = theta0 + ω*dt;
+
+      const x = cx + radius*Math.cos(θ);
+      const y = cy + radius*Math.sin(θ);
+
+      ctx.clearRect(0,0,W,H);
+
+      ctx.strokeStyle = '#888';
+      ctx.beginPath();
+      ctx.arc(cx, cy, radius, 0, 2*Math.PI);
+      ctx.stroke();
+
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.arc(x,y,8,0,2*Math.PI);
+      ctx.fill();
+
+      drawArrow(x,y, cx,cy, 'crimson');
+
+      const ωlen = Math.min(80, ω*30); 
+      drawArrow(cx,cy, cx, cy-ωlen, 'steelblue');
+
+      fV.textContent = f.toFixed(3);
+      tV.textContent = T.toFixed(3);
+      wV.textContent = ω.toFixed(3);
+      aVal.textContent = ac.toFixed(1);
+
+      requestAnimationFrame(animate);
+    }
+
+    requestAnimationFrame(animate);
+  </script>
+
+</body>
+</html>
